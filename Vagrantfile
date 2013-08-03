@@ -1,34 +1,42 @@
-##########################################################
+#############################################################
 # Rawr! Vagrant Skeleton!
 # 
 # This Vagrantfile creates a test environment for
-# LAMP/LEMP-based projects. Be sure to check out the
-# config options and set ip to something local and unused.
-##########################################################
+# LAMP/LEMP-based projects. 
+# 
+# This Vagrantfile supports the vagrant-auto_network plugin
+# 
+# http://github.com/adrienthebo/vagrant-auto_network
+# 
+# If you're not using that, be sure to set the "ip" config
+# option to something local and unused.
+#############################################################
 
 ##
 # Config
 #
 config = {
 
-	# Set the host name for this development box
+	# Set the host name for this box.
 	"hostname" => "skeleton",
 
-	# Set a private IP address
+	# Set a private IP address.
+	# (Ignored when using vagrant-auto_network)
 	"ip" => "10.0.12.2",
 
-	# Choose a web server to install ("apache" or "nginx")
+	# Choose a web server to install.
+	# (Accepts "apache" or "nginx")
 	"webserver" => "nginx",
 
-	# Set the base directory for /vagrant, relative
-	# to the Vagrantfile
+	# Set the base directory for /vagrant, 
+	# relative to the Vagrantfile.
 	"vagrant_basedir" => "./",
 
-	# Set the web server's base directory, relative
-	# to the above vagrant_basedir
+	# Set the web server's base directory, 
+	# relative to the above vagrant_basedir.
 	"web_basedir" => "public/",
 
-	# Optionally upgrade installed packages on boot
+	# Optionally dist-upgrade on boot.
 	"upgrade_on_boot" => "yes"
 }
 #
@@ -41,7 +49,13 @@ Vagrant.configure("2") do |vconfig|
 	vconfig.vm.box = "precise32"
 	vconfig.vm.box_url = "http://files.vagrantup.com/precise32.box"
 	
-	vconfig.vm.network :private_network, ip: config["ip"]
+	if defined? AutoNetwork
+		vconfig.vm.extend AutoNetwork::Mixin
+		vconfig.vm.auto_network!
+	else
+		vconfig.vm.network :private_network, ip: config["ip"]
+	end
+	
 	vconfig.vm.hostname = config["hostname"]
 	
 	vconfig.vm.synced_folder config["vagrant_basedir"], "/vagrant/base", :group => "www-data", :extra => "dmode=775,fmode=664"
