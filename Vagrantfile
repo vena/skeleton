@@ -27,7 +27,7 @@ config = {
 	"hostname" => "skeleton",
 
 	# Set a private IP address.
-	# (REQUIRED. Used if vagrant-auto_network is not installed)
+	# (OPTIONAL. Used if vagrant-auto_network is not installed)
 	"ip" => "10.0.12.2",
 
 	# Choose a web server to install.
@@ -84,6 +84,9 @@ Vagrant.configure("2") do |vconfig|
 	vconfig.vm.box = "precise32"
 	vconfig.vm.box_url = "http://files.vagrantup.com/precise32.box"
 	
+	unless config.has_key?("ip")
+		config["ip"] = "10.0.255.255"
+	end
 	vconfig.vm.network :private_network, ip: config["ip"], :auto_network => true
 	
 	vconfig.vm.hostname = config["hostname"]
