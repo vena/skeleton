@@ -4,12 +4,17 @@
 # This Vagrantfile creates a test environment for
 # LAMP/LEMP-based projects. 
 # 
-# This Vagrantfile supports the vagrant-auto_network plugin
-# 
+# This Vagrantfile supports and recommends the following
+# Vagrant plugins:
+#
+# vagrant-auto_network plugin
+# Automatically manages and assigns IP addresses to guests
 # http://github.com/adrienthebo/vagrant-auto_network
+#
+# vagrant-hostsupdater
+# Keeps track of host name => IP aliases in /etc/hosts
+# https://github.com/cogitatio/vagrant-hostsupdater
 # 
-# If you're not using that, be sure to set the "ip" config
-# option to something local and unused.
 #############################################################
 
 ##
