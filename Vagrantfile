@@ -67,6 +67,15 @@ Vagrant.configure("2") do |vconfig|
 
 	end
 
+	# Set display name
+	vconfig.vm.define config["hostname"] do |t|
+	end
+
+	# Set VM name in VirtualBox UI
+	vconfig.vm.provider "virtualbox" do |p|
+		p.name = config["hostname"] + "_vagrant"
+	end
+
 	vconfig.vm.box = "precise32"
 	vconfig.vm.box_url = "http://files.vagrantup.com/precise32.box"
 	
