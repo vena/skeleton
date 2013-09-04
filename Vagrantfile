@@ -18,25 +18,29 @@
 config = {
 
 	# Set the host name for this box.
+	# (REQUIRED)
 	"hostname" => "skeleton",
 
 	# Set a private IP address.
-	# (Ignored when using vagrant-auto_network)
+	# (REQUIRED. Used if vagrant-auto_network is not installed)
 	"ip" => "10.0.12.2",
 
 	# Choose a web server to install.
-	# (Accepts "apache" or "nginx")
+	# (REQUIRED. Accepts "apache" or "nginx")
 	"webserver" => "nginx",
 
 	# Set the base directory for /vagrant, 
 	# relative to the Vagrantfile.
+	# (REQUIRED)
 	"vagrant_basedir" => "./",
 
 	# Set the web server's base directory, 
 	# relative to the above vagrant_basedir.
+	# (OPTIONAL)
 	"web_basedir" => "public/",
 
 	# Optionally dist-upgrade on boot.
+	# (OPTIONAL)
 	"upgrade_on_boot" => "yes"
 }
 #
@@ -45,16 +49,28 @@ config = {
 
 
 Vagrant.configure("2") do |vconfig|
+	
+	# Warn about missing recommended plugins on "up"
+	if ARGV[0] == 'up'
+
+		unless defined? AutoNetwork
+			print "[INFO] vagrant-auto_network not detected!\n"
+			print "       This plugin is recommended. If you'd like to install it now, ^C and run:\n"
+			print "       $ vagrant plugin install vagrant-auto_network\n"
+		end
+
+		unless defined? VagrantPlugins::HostsUpdater
+			print "[INFO] vagrant-hostsupdater not detected!\n"
+			print "       This plugin is recommended. If you'd like to install it now, ^C and run:\n"
+			print "       $ vagrant plugin install vagrant-hostsupdater\n"
+		end
+
+	end
 
 	vconfig.vm.box = "precise32"
 	vconfig.vm.box_url = "http://files.vagrantup.com/precise32.box"
 	
-	if defined? AutoNetwork
-		vconfig.vm.extend AutoNetwork::Mixin
-		vconfig.vm.auto_network!
-	else
-		vconfig.vm.network :private_network, ip: config["ip"]
-	end
+	vconfig.vm.network :private_network, ip: config["ip"], :auto_network => true
 	
 	vconfig.vm.hostname = config["hostname"]
 	
