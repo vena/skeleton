@@ -73,7 +73,7 @@ Vagrant.configure("2") do |vconfig|
 
 	# Set VM name in VirtualBox UI
 	vconfig.vm.provider "virtualbox" do |p|
-		p.name = config["hostname"] + "_vagrant"
+		p.name = "vagrant::" + config["hostname"]
 	end
 
 	vconfig.vm.box = "precise32"
