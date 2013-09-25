@@ -91,7 +91,7 @@ Vagrant.configure("2") do |vconfig|
 	
 	vconfig.vm.hostname = config["hostname"]
 	
-	vconfig.vm.synced_folder config["vagrant_basedir"], "/vagrant/base", :group => "www-data", :extra => "dmode=775,fmode=664"
+	vconfig.vm.synced_folder config["vagrant_basedir"], "/vagrant/base", :group => "www-data", :mount_options => ["dmode=775","fmode=664"]
 	
 	##
 	# Base package install
