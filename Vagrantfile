@@ -167,7 +167,7 @@ Vagrant.configure("2") do |vconfig|
 			echo '[Apache] Installing...'
 			export DEBIAN_FRONTEND=noninteractive
 			apt-fast update > /dev/null 2>&1
-			apt-fast install apache2 libapache2-mod-php -y > /dev/null 2>&1
+			apt-fast install apache2 libapache2-mod-php5 -y > /dev/null 2>&1
 			
 			echo '[Apache] Enabling mod_rewrite.'
 			a2enmod rewrite > /dev/null 2>&1
