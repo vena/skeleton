@@ -182,7 +182,7 @@ EnableSendfile Off
 <VirtualHost *:80>
 	ServerName %{hostname}
 	DocumentRoot /vagrant/base/%{web_basedir}
-	<Directory /www>
+	<Directory />
 		AllowOverride all
 		Options FollowSymlinks
 		Order allow,deny
