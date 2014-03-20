@@ -116,7 +116,7 @@ Vagrant.configure("2") do |vconfig|
 		add-apt-repository ppa:apt-fast/stable -y > /dev/null 2>&1
 		apt-get update > /dev/null 2>&1
 		apt-get install apt-fast -y > /dev/null 2>&1
-		apt-fast install augeas-tools curl libnss-mdns ntp git-core puppet -y > /dev/null 2>&1
+		apt-fast install augeas-tools curl libnss-mdns ntp git-core puppet memcached -y > /dev/null 2>&1
 		echo $(date) > /.provisioned/system
 	fi
 	"
@@ -154,7 +154,7 @@ Vagrant.configure("2") do |vconfig|
 			
 			echo '[PHP] Installing modules...'
 			apt-fast update > /dev/null 2>&1
-			apt-fast install php5-mysql php5-gd php5-mcrypt php5-tidy php5-curl php5-xsl php5-sqlite -y > /dev/null 2>&1	
+			apt-fast install php5-mysql php5-gd php5-mcrypt php5-tidy php5-curl php5-xsl php5-sqlite php5-memcached -y > /dev/null 2>&1	
 			echo $(date) > /.provisioned/php
 		fi
 	"
@@ -196,7 +196,7 @@ EOT
 			echo '[PHP] Installing mod_php...'
 			apt-fast update > /dev/null 2>&1
 			apt-fast install libapache2-mod-php -y > /dev/null 2>&1
-			apache2ctl restart
+			apache2ctl restart > /dev/null 2>&1
 			echo $(date) > /.provisioned/apache2
 		fi
 		" % {hostname: config["hostname"], web_basedir: config["web_basedir"]}
@@ -278,14 +278,15 @@ EOT
 		vconfig.vm.provision :shell, :inline => "
 			echo ''
 			echo 'Upgrading installed packages in the background.'
-			echo 'This will take a while, and you will need to reload'
-			echo 'the VM manually when it is complete using:'
+			echo 'This will take a while, show no progress information,'
+			echo 'and you will need to reload the VM manually when it'
+			echo 'is complete using:'
 			echo ''
 			echo 'vagrant reload --no-provision'
 			echo ''
 
 			apt-fast update > /dev/null 2>&1
-			sudo nohup sh -c 'sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" dist-upgrade' > /dev/null 2>&1 &
+			sudo nohup sh -c 'sudo apt-fast update && sudo DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" dist-upgrade' > /dev/null 2>&1 &
 		"
 	end
 
