@@ -91,7 +91,7 @@ Vagrant.configure("2") do |vconfig|
 	
 	vconfig.vm.hostname = config["hostname"]
 	
-	vconfig.vm.synced_folder config["vagrant_basedir"], "/vagrant/base", :group => "www-data", :mount_options => ["dmode=775","fmode=664"]
+	vconfig.vm.synced_folder config["vagrant_basedir"], "/vagrant", :create => true, :group => "www-data", :mount_options => ["dmode=775","fmode=664"]
 	
 	##
 	# Base package install
@@ -134,7 +134,7 @@ Vagrant.configure("2") do |vconfig|
 		echo '[MySQL] Allowing all connections to root user.'
 		/usr/bin/mysql -uroot -e \"grant all privileges on *.* to 'root'@'%'; flush privileges;\"
 		
-		echo '[MySQL] Binding MySQL to all interfaces.'
+		echo '[MySQL] Binding MySQL to external interfaces.'
 		/usr/bin/perl -pi -e 's/^.*bind-address.*$/bind-address = 0.0.0.0/' '/etc/mysql/my.cnf'
 		service mysql restart > /dev/null 2>&1
 		echo $(date) > /.provisioned/mysql
@@ -148,13 +148,14 @@ Vagrant.configure("2") do |vconfig|
 		if [ ! -f /.provisioned/php ]; then
 			echo '[PHP] Installing command line tool...'
 			export DEBIAN_FRONTEND=noninteractive
+			add-apt-repository ppa:ondrej/php5-oldstable > /dev/null 2>&1
 			apt-fast update > /dev/null 2>&1
 			apt-fast install php5-cli -y > /dev/null 2>&1
 			
 			echo '[PHP] Installing modules...'
 			apt-fast update > /dev/null 2>&1
-			apt-fast install php5-mysql php5-gd php5-mcrypt php5-suhosin php5-tidy php5-curl php5-xsl php5-sqlite php-apc -y > /dev/null 2>&1	
-			echo $(date) > /.provisioned/php		
+			apt-fast install php5-mysql php5-gd php5-mcrypt php5-tidy php5-curl php5-xsl php5-sqlite -y > /dev/null 2>&1	
+			echo $(date) > /.provisioned/php
 		fi
 	"
 
@@ -167,7 +168,7 @@ Vagrant.configure("2") do |vconfig|
 			echo '[Apache] Installing...'
 			export DEBIAN_FRONTEND=noninteractive
 			apt-fast update > /dev/null 2>&1
-			apt-fast install apache2 libapache2-mod-php5 -y > /dev/null 2>&1
+			apt-fast install apache2-mpm-prefork php5 -y > /dev/null 2>&1
 			
 			echo '[Apache] Enabling mod_rewrite.'
 			a2enmod rewrite > /dev/null 2>&1
@@ -181,7 +182,7 @@ EnableSendfile Off
 
 <VirtualHost *:80>
 	ServerName %{hostname}
-	DocumentRoot /vagrant/base/%{web_basedir}
+	DocumentRoot /vagrant/%{web_basedir}
 	<Directory />
 		AllowOverride all
 		Options FollowSymlinks
@@ -220,7 +221,7 @@ EOT
 server {
     listen 80 default_server;
     server_name _;
-    root /vagrant/base/%{web_basedir};
+    root /vagrant/%{web_basedir};
     index index.php index.html index.htm;
 
     sendfile off;
@@ -230,7 +231,7 @@ server {
     }
 
     location ~ \.php($|/) {
-        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_pass unix:/var/run/php5-fpm.sock;
         fastcgi_index index.php;
         include fastcgi_params;
     }
@@ -262,7 +263,6 @@ EOT
 	vconfig.vm.provision :shell, :inline => "
 	if [ ! -f /.provisioned/composer ]; then
 		echo '[Composer] Installing...'
-		/usr/bin/perl -pi -e 's/^.*suhosin.executor.include.whitelist.*$/suhosin.executor.include.whitelist = phar/' '/etc/php5/conf.d/suhosin.ini'
 		augtool -s 'set /files/etc/php5/cli/php.ini/PHP/allow_url_fopen On'
 		curl -s http://getcomposer.org/installer | php > /dev/null 2>&1
 		
