@@ -81,8 +81,7 @@ Vagrant.configure("2") do |vconfig|
 		p.name = "vagrant::" + config["hostname"]
 	end
 
-	vconfig.vm.box = "precise32"
-	vconfig.vm.box_url = "http://files.vagrantup.com/precise32.box"
+	vconfig.vm.box = "ubuntu/trusty32"
 	
 	unless config.has_key?("ip")
 		config["ip"] = "10.0.255.255"
@@ -102,8 +101,8 @@ Vagrant.configure("2") do |vconfig|
 	fi
 	if [ ! -f /.provisioned/system ]; then
 		export DEBIAN_FRONTEND=noninteractive
-		echo 'Setting timezone...'
-		echo 'Etc/UTC' | tee /etc/timezone > /dev/null 2>&1 && dpkg-reconfigure --frontend noninteractive tzdata
+		echo 'Setting timezone to UTC...'
+		echo 'Etc/UTC' | tee /etc/timezone > /dev/null 2>&1 && dpkg-reconfigure --frontend noninteractive tzdata > /dev/null 2>&1
 
 		echo 'Setting grub timeout...'
 		echo 'GRUB_RECORDFAIL_TIMEOUT=3' >> /etc/default/grub && update-grub > /dev/null 2>&1
@@ -113,48 +112,54 @@ Vagrant.configure("2") do |vconfig|
 
 		echo 'Installing base packages...'
 		apt-get install python-software-properties -y > /dev/null 2>&1
-		add-apt-repository ppa:apt-fast/stable -y > /dev/null 2>&1
-		apt-get update > /dev/null 2>&1
-		apt-get install apt-fast -y > /dev/null 2>&1
-		apt-fast install augeas-tools curl libnss-mdns ntp git-core puppet memcached -y > /dev/null 2>&1
+		apt-get install augeas-tools curl libnss-mdns ntp git-core puppet memcached -y > /dev/null 2>&1
 		echo $(date) > /.provisioned/system
 	fi
 	"
 
 	##
-	# Install MYSQL
+	# Install MariaDB
 	#
 	vconfig.vm.provision :shell, :inline => "
-	if [ ! -f /.provisioned/mysql ]; then
-		echo '[MySQL] Installing...'
+	if [ ! -f /.provisioned/mariadb ]; then
+		echo '[MariaDB] Installing...'
 		export DEBIAN_FRONTEND=noninteractive
-		apt-fast update > /dev/null 2>&1
-		apt-fast install mysql-server mysql-client -y > /dev/null 2>&1
+		apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xcbcb082a1bb943db > /dev/null 2>&1
+		add-apt-repository 'deb http://mirrors.syringanetworks.net/mariadb/repo/5.5/ubuntu precise main' > /dev/null 2>&1
+		apt-get update > /dev/null 2>&1
+		apt-get install mariadb-server mariadb-client -y > /dev/null 2>&1
 		
-		echo '[MySQL] Allowing all connections to root user.'
-		/usr/bin/mysql -uroot -e \"grant all privileges on *.* to 'root'@'%'; flush privileges;\"
+		echo '[MariaDB] Allowing all connections to root user.'
+		/usr/bin/mysql -u root -e \"grant all privileges on *.* to 'root'@'%'; flush privileges;\"
 		
-		echo '[MySQL] Binding MySQL to external interfaces.'
+		echo '[MariaDB] Binding MariaDB to external interfaces.'
 		/usr/bin/perl -pi -e 's/^.*bind-address.*$/bind-address = 0.0.0.0/' '/etc/mysql/my.cnf'
 		service mysql restart > /dev/null 2>&1
-		echo $(date) > /.provisioned/mysql
+
+		echo '[MariaDB] Installation complete.'
+		echo $(date) > /.provisioned/mariadb
 	fi
 	"
 
 	##
-	# Install PHP command line tool and modules
+	# Install PHP CLI, PHP-FPM and required modules
 	#
 	vconfig.vm.provision :shell, :inline => "
 		if [ ! -f /.provisioned/php ]; then
-			echo '[PHP] Installing command line tool...'
+			echo '[PHP] Installing PHP-CLI and PHP-FPM...'
 			export DEBIAN_FRONTEND=noninteractive
-			add-apt-repository ppa:ondrej/php5-oldstable > /dev/null 2>&1
-			apt-fast update > /dev/null 2>&1
-			apt-fast install php5-cli -y > /dev/null 2>&1
+			apt-get update > /dev/null 2>&1
+			apt-get install php5-cli php5-fpm php5 -y > /dev/null 2>&1
 			
 			echo '[PHP] Installing modules...'
-			apt-fast update > /dev/null 2>&1
-			apt-fast install php5-mysql php5-gd php5-mcrypt php5-tidy php5-curl php5-xsl php5-sqlite php5-memcached -y > /dev/null 2>&1	
+			apt-get update > /dev/null 2>&1
+			apt-get install php5-mysql php5-gd php5-mcrypt php5-tidy php5-curl php5-xsl php5-sqlite php5-memcached -y > /dev/null 2>&1
+			php5enmod mcrypt mysql gd tidy curl xsl sqlite3 memcached
+
+			echo '[PHP] Restarting PHP-FPM...'
+			service php5-fpm restart > /dev/null 2>&1
+
+			echo '[PHP] Installation complete.'
 			echo $(date) > /.provisioned/php
 		fi
 	"
@@ -167,19 +172,19 @@ Vagrant.configure("2") do |vconfig|
 		if [ ! -f /.provisioned/apache2 ]; then
 			echo '[Apache] Installing...'
 			export DEBIAN_FRONTEND=noninteractive
-			apt-fast update > /dev/null 2>&1
-			apt-fast install apache2-mpm-prefork php5 -y > /dev/null 2>&1
+			apt-get update > /dev/null 2>&1
+			apt-get install apache2-mpm-event -y > /dev/null 2>&1
 			
 			echo '[Apache] Enabling mod_rewrite.'
 			a2enmod rewrite > /dev/null 2>&1
 			
 			echo '[Apache] Disabling default server config.'
-			a2dissite default > /dev/null 2>&1
+			a2dissite default 000-default > /dev/null 2>&1
 			
 			echo '[Apache] Installing vagrant server config.'
-			cat <<EOT >/etc/apache2/sites-available/vagrant
+			cat <<EOT >/etc/apache2/sites-available/vagrant.conf
 EnableSendfile Off
-
+ServerName %{hostname}
 <VirtualHost *:80>
 	ServerName %{hostname}
 	DocumentRoot /vagrant/%{web_basedir}
@@ -188,15 +193,42 @@ EnableSendfile Off
 		Options FollowSymlinks
 		Order allow,deny
 		Allow from all
+		Require all granted
 	</Directory>
+	ErrorLog /var/log/apache2/vagrant-error.log
+	CustomLog /var/log/apache2/vagrant-access.log combined
 </VirtualHost>
 EOT
 			a2ensite vagrant > /dev/null 2>&1
 			
-			echo '[PHP] Installing mod_php...'
-			apt-fast update > /dev/null 2>&1
-			apt-fast install libapache2-mod-php -y > /dev/null 2>&1
+			echo '[Apache/PHP-FPM] Installing mod_fastcgi...'
+			cat <<EOT >> /etc/apt/sources.list
+deb http://archive.ubuntu.com/ubuntu trusty multiverse
+deb http://archive.ubuntu.com/ubuntu trusty-updates multiverse
+deb http://security.ubuntu.com/ubuntu trusty-security multiverse
+EOT
+			apt-get update > /dev/null 2>&1
+			apt-get install libapache2-mod-fastcgi > /dev/null 2>&1
+
+			echo '[Apache/PHP-FPM] Enabling PHP-FPM...'
+			a2enmod actions alias fastcgi > /dev/null 2>&1
+			cat <<EOT >/etc/apache2/conf-available/php5-fpm.conf
+<IfModule mod_fastcgi.c>
+	AddHandler php5-fcgi .php
+	Action php5-fcgi /php5-fcgi
+	Alias /php5-fcgi /usr/lib/cgi-bin/php5-fcgi
+	FastCgiExternalServer /usr/lib/cgi-bin/php5-fcgi -socket /var/run/php5-fpm.sock -pass-header Authorization
+	<Directory /usr/lib/cgi-bin>
+		Options ExecCGI FollowSymLinks
+		SetHandler fastcgi-script
+		Require all granted
+	</Directory>
+</IfModule>
+EOT
+			a2enconf php5-fpm > /dev/null 2>&1
 			apache2ctl restart > /dev/null 2>&1
+
+			echo '[Apache] Installation complete.'
 			echo $(date) > /.provisioned/apache2
 		fi
 		" % {hostname: config["hostname"], web_basedir: config["web_basedir"]}
@@ -210,8 +242,8 @@ EOT
 		if [ ! -f /.provisioned/nginx ]; then
 			echo '[nginx] Installing...'
 			export DEBIAN_FRONTEND=noninteractive
-			apt-fast update > /dev/null 2>&1
-			apt-fast install nginx -y > /dev/null 2>&1
+			apt-get update > /dev/null 2>&1
+			apt-get install nginx -y > /dev/null 2>&1
 			
 			echo '[nginx] Removing default web server config.'
 			rm -rf /etc/nginx/sites-enabled/default
@@ -248,10 +280,9 @@ EOT
 			ln -s /etc/nginx/sites-available/vagrant /etc/nginx/sites-enabled/vagrant
 			mkdir /etc/nginx/conf.vagrant
 			
-			echo '[PHP] Installing php-fpm...'
-			apt-fast update > /dev/null 2>&1
-			apt-fast install php5-fpm -y > /dev/null 2>&1
-			service nginx restart
+			service nginx restart > /dev/null 2>&1
+
+			echo '[nginx] Installation complete.'
 			echo $(date) > /.provisioned/nginx
 		fi
 		" % {web_basedir: config["web_basedir"]}
@@ -270,6 +301,8 @@ EOT
 		mkdir -p /usr/local/bin
 		mv /home/vagrant/composer.phar /usr/local/bin/composer
 		(crontab -l; echo '14 3 */2 * * /usr/local/bin/composer self-update') | crontab - > /dev/null 2>&1
+
+		echo '[Composer] Installation complete.'
 		echo $(date) > /.provisioned/composer
 	fi
 	"
@@ -285,8 +318,8 @@ EOT
 			echo 'vagrant reload --no-provision'
 			echo ''
 
-			apt-fast update > /dev/null 2>&1
-			sudo nohup sh -c 'sudo apt-fast update && sudo DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" dist-upgrade' > /dev/null 2>&1 &
+			apt-get update > /dev/null 2>&1
+			sudo nohup sh -c 'sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" dist-upgrade' > /dev/null 2>&1 &
 		"
 	end
 
