@@ -259,7 +259,7 @@ server {
     sendfile off;
 
     location / {
-        try_files \\$uri /index.php?$query_string;
+        try_files \\$uri /index.php?\\$query_string;
     }
 
     location ~ \.php($|/) {
