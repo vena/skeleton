@@ -252,7 +252,7 @@ EOT
 			cat <<EOT >/etc/nginx/sites-available/vagrant
 server {
     listen 80 default_server;
-    server_name _;
+    server_name %{hostname};
     root /vagrant/%{web_basedir};
     index index.php index.html index.htm;
 
@@ -285,7 +285,7 @@ EOT
 			echo '[nginx] Installation complete.'
 			echo $(date) > /.provisioned/nginx
 		fi
-		" % {web_basedir: config["web_basedir"]}
+		" % {hostname: config["hostname"], web_basedir: config["web_basedir"]}
 	end
 
 	##
