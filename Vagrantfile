@@ -200,50 +200,50 @@ Vagrant.configure("2") do |config|
 					a2dissite default 000-default > /dev/null 2>&1
 					
 					echo '[Apache] Installing vagrant server config.'
-					cat <<EOF > /etc/apache2/sites-available/vagrant.conf
-EnableSendfile Off
-ServerName #{vm_config["hostname"]}
-<VirtualHost *:80>
-	ServerName #{vm_config["hostname"]}
-	DocumentRoot /vagrant/#{vm_config["web_basedir"]}
-	<Directory />
-		AllowOverride all
-		Options FollowSymlinks
-		Order allow,deny
-		Allow from all
-		Require all granted
-	</Directory>
-	ErrorLog /var/log/apache2/vagrant-error.log
-	CustomLog /var/log/apache2/vagrant-access.log combined
-</VirtualHost>
-EOF
+					cat <<-EOF > /etc/apache2/sites-available/vagrant.conf
+						EnableSendfile Off
+						ServerName #{vm_config["hostname"]}
+						<VirtualHost *:80>
+							ServerName #{vm_config["hostname"]}
+							DocumentRoot /vagrant/#{vm_config["web_basedir"]}
+							<Directory />
+								AllowOverride all
+								Options FollowSymlinks
+								Order allow,deny
+								Allow from all
+								Require all granted
+							</Directory>
+							ErrorLog /var/log/apache2/vagrant-error.log
+							CustomLog /var/log/apache2/vagrant-access.log combined
+						</VirtualHost>
+					EOF
 					
 					a2ensite vagrant > /dev/null 2>&1
 
 					echo '[Apache/PHP-FPM] Installing mod_fastcgi...'
-					cat <<EOF >> /etc/apt/sources.list
-deb http://archive.ubuntu.com/ubuntu $(lsb_release -cs) multiverse
-deb http://archive.ubuntu.com/ubuntu $(lsb_release -cs)-updates multiverse
-deb http://security.ubuntu.com/ubuntu $(lsb_release -cs)-security multiverse
-EOF
+					cat <<-EOF >> /etc/apt/sources.list
+						deb http://archive.ubuntu.com/ubuntu $(lsb_release -cs) multiverse
+						deb http://archive.ubuntu.com/ubuntu $(lsb_release -cs)-updates multiverse
+						deb http://security.ubuntu.com/ubuntu $(lsb_release -cs)-security multiverse
+					EOF
 					apt-get update > /dev/null 2>&1
 					apt-get install libapache2-mod-fastcgi > /dev/null 2>&1
 
 					echo '[Apache/PHP-FPM] Enabling PHP-FPM...'
 					a2enmod actions alias fastcgi > /dev/null 2>&1
-					cat <<EOF >/etc/apache2/conf-available/php5-fpm.conf
-<IfModule mod_fastcgi.c>
-	AddHandler php5-fcgi .php
-	Action php5-fcgi /php5-fcgi
-	Alias /php5-fcgi /usr/lib/cgi-bin/php5-fcgi
-	FastCgiExternalServer /usr/lib/cgi-bin/php5-fcgi -socket /var/run/php5-fpm.sock -pass-header Authorization
-	<Directory /usr/lib/cgi-bin>
-		Options ExecCGI FollowSymLinks
-		SetHandler fastcgi-script
-		Require all granted
-	</Directory>
-</IfModule>
-EOF
+					cat <<-EOF >/etc/apache2/conf-available/php5-fpm.conf
+						<IfModule mod_fastcgi.c>
+							AddHandler php5-fcgi .php
+							Action php5-fcgi /php5-fcgi
+							Alias /php5-fcgi /usr/lib/cgi-bin/php5-fcgi
+							FastCgiExternalServer /usr/lib/cgi-bin/php5-fcgi -socket /var/run/php5-fpm.sock -pass-header Authorization
+							<Directory /usr/lib/cgi-bin>
+								Options ExecCGI FollowSymLinks
+								SetHandler fastcgi-script
+								Require all granted
+							</Directory>
+						</IfModule>
+					EOF
 					a2enconf php5-fpm > /dev/null 2>&1
 
 					apache2ctl restart > /dev/null 2>&1
@@ -271,51 +271,51 @@ EOF
 
 					echo '[nginx] Installing vagrant web server config.'
 					rm -rf /etc/nginx/sites-enabled/default
-					cat <<EOF > /etc/nginx/sites-available/vagrant
-server {
-	listen 80 default_server;
-	listen [::]:80 default_server ipv6only=on;
+					cat <<-EOF > /etc/nginx/sites-available/vagrant
+						server {
+							listen 80 default_server;
+							listen [::]:80 default_server ipv6only=on;
 
-	root /vagrant/#{vm_config["web_basedir"]};
-	
-	index index.html index.htm index.php;
+							root /vagrant/#{vm_config["web_basedir"]};
+							
+							index index.html index.htm index.php;
 
-	server_name #{vm_config["hostname"]};
+							server_name #{vm_config["hostname"]};
 
-	charset utf-8;
+							charset utf-8;
 
-	sendfile off;
+							sendfile off;
 
-	client_max_body_size 100m;
+							client_max_body_size 100m;
 
-	location / {
-		try_files \\$uri \\$uri/ /index.php?\\$query_string;
-	}
+							location / {
+								try_files \\$uri \\$uri/ /index.php?\\$query_string;
+							}
 
-	location = /favicon.ico { access_log off; log_not_found off; }
-	location = /robots.txt { access_log off; log_not_found off; }
+							location = /favicon.ico { access_log off; log_not_found off; }
+							location = /robots.txt { access_log off; log_not_found off; }
 
-	location ~ [^/]\\.php(/|$) {
-		fastcgi_split_path_info ^(.+?\\.php)(/.*)$;
-		if (!-f \\$document_root\\$fastcgi_script_name) {
-			return 404;
-		}
-		include fastcgi.conf;
-		fastcgi_pass unix:/var/run/php5-fpm.sock;
-		include fastcgi_params;
-		fastcgi_intercept_errors off;
-		fastcgi_buffer_size 16k;
-		fastcgi_buffers 4 16k;
-	}
+							location ~ [^/]\\.php(/|$) {
+								fastcgi_split_path_info ^(.+?\\.php)(/.*)$;
+								if (!-f \\$document_root\\$fastcgi_script_name) {
+									return 404;
+								}
+								include fastcgi.conf;
+								fastcgi_pass unix:/var/run/php5-fpm.sock;
+								include fastcgi_params;
+								fastcgi_intercept_errors off;
+								fastcgi_buffer_size 16k;
+								fastcgi_buffers 4 16k;
+							}
 
-	location /nginx_status {
-		stub_status on;
-		access_log off;
-	}
+							location /nginx_status {
+								stub_status on;
+								access_log off;
+							}
 
-	include /etc/nginx/conf.vagrant/*.conf;
-}
-EOF
+							include /etc/nginx/conf.vagrant/*.conf;
+						}
+					EOF
 					ln -s /etc/nginx/sites-available/vagrant /etc/nginx/sites-enabled/vagrant
 					mkdir /etc/nginx/conf.vagrant
 
